@@ -13,7 +13,7 @@
 #include <esp_log.h>
 #include "i2cdev.h"
 
-static const char *TAG = "i2cdev";
+static const char *TAG = "i2c_dev";
 
 typedef struct {
     SemaphoreHandle_t lock;
@@ -22,6 +22,9 @@ typedef struct {
 } i2c_port_state_t;
 
 static i2c_port_state_t states[I2C_NUM_MAX];
+
+#define I2C_MASTER_RX_BUF_DISABLE 0 /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_TX_BUF_DISABLE 0 /*!< I2C master doesn't need buffer */
 
 #define SEMAPHORE_TAKE(port) do { \
         if (!xSemaphoreTake(states[port].lock, pdMS_TO_TICKS(CONFIG_I2CDEV_TIMEOUT))) \
@@ -160,7 +163,7 @@ static esp_err_t i2c_setup_port(const i2c_dev_t *dev)
 #if HELPER_TARGET_IS_ESP32
         if ((res = i2c_param_config(dev->port, &temp)) != ESP_OK)
             return res;
-        if ((res = i2c_driver_install(dev->port, temp.mode, 0, 0, 0)) != ESP_OK)
+        if ((res = i2c_driver_install(dev->port, temp.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0)) != ESP_OK)
             return res;
 #endif
 #if HELPER_TARGET_IS_ESP8266
@@ -209,7 +212,7 @@ esp_err_t i2c_dev_read(const i2c_dev_t *dev, const void *out_data, size_t out_si
             i2c_master_write(cmd, (void *)out_data, out_size, true);
         }
         i2c_master_start(cmd);
-        i2c_master_write_byte(cmd, (dev->addr << 1) | 1, true);
+        i2c_master_write_byte(cmd, (dev->addr << 1) | I2C_MASTER_READ, true);
         i2c_master_read(cmd, in_data, in_size, I2C_MASTER_LAST_NACK);
         i2c_master_stop(cmd);
 
